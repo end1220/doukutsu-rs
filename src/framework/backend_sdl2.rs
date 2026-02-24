@@ -166,8 +166,18 @@ impl SDL2EventLoop {
 
         let gl_attr = video.gl_attr();
 
-        gl_attr.set_context_profile(GLProfile::Compatibility);
-        gl_attr.set_context_version(2, 1);
+        #[cfg(target_os = "linux")]
+        {
+            gl_attr.set_context_profile(GLProfile::GLES);
+            gl_attr.set_context_version(2, 0);
+            log::info!("SDL2: requesting OpenGL ES 2.0 context (Linux)");
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            gl_attr.set_context_profile(GLProfile::Compatibility);
+            gl_attr.set_context_version(2, 1);
+            log::info!("SDL2: requesting OpenGL 2.1 Compatibility context");
+        }
 
         let mut win_builder = video.window("Cave Story (doukutsu-rs)", ctx.window.size_hint.0 as _, ctx.window.size_hint.1 as _);
         win_builder.position_centered();
@@ -486,8 +496,14 @@ impl BackendEventLoop for SDL2EventLoop {
                 *user_data = Rc::into_raw(refs) as *mut c_void;
             }
 
+            let gles2_mode = cfg!(target_os = "linux");
+            if gles2_mode {
+                log::info!("SDL2 renderer: using OpenGL ES 2.0 (gles2_mode=true)");
+            } else {
+                log::info!("SDL2 renderer: using OpenGL 2.1 (gles2_mode=false)");
+            }
             let gl_context =
-                GLContext { gles2_mode: false, is_sdl: true, get_proc_address, swap_buffers, user_data, ctx };
+                GLContext { gles2_mode, is_sdl: true, get_proc_address, swap_buffers, user_data, ctx };
 
             return Ok(Box::new(OpenGLRenderer::new(gl_context, UnsafeCell::new(imgui))));
         }

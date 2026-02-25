@@ -105,7 +105,7 @@ fn default_timing() -> TimingMode {
 
 #[inline(always)]
 fn default_window_mode() -> WindowMode {
-    WindowMode::Windowed
+    WindowMode::Fullscreen
 }
 
 #[inline(always)]
@@ -459,7 +459,7 @@ impl Default for Settings {
             debug_outlines: false,
             fps_counter: false,
             locale: default_locale(),
-            window_mode: WindowMode::Windowed,
+            window_mode: WindowMode::Fullscreen,
             vsync_mode: VSyncMode::VSync,
             screen_shake_intensity: ScreenShakeIntensity::Full,
             debug_mode: false,

@@ -179,7 +179,19 @@ impl SDL2EventLoop {
             log::info!("SDL2: requesting OpenGL 2.1 Compatibility context");
         }
 
-        let mut win_builder = video.window("Cave Story (doukutsu-rs)", ctx.window.size_hint.0 as _, ctx.window.size_hint.1 as _);
+        let (win_w, win_h) = if ctx.window.mode.is_fullscreen() {
+            video
+                .desktop_display_mode(0)
+                .map(|dm| (dm.w.max(1) as u32, dm.h.max(1) as u32))
+                .unwrap_or((
+                    ctx.window.size_hint.0 as u32,
+                    ctx.window.size_hint.1 as u32,
+                ))
+        } else {
+            (ctx.window.size_hint.0 as u32, ctx.window.size_hint.1 as u32)
+        };
+
+        let mut win_builder = video.window("Cave Story (doukutsu-rs)", win_w as _, win_h as _);
         win_builder.position_centered();
         win_builder.resizable();
 
@@ -243,6 +255,7 @@ impl BackendEventLoop for SDL2EventLoop {
             let _ = state.handle_resize(ctx);
         }
 
+        let mut viewport_debug_frame: u32 = 0;
         loop {
             #[cfg(target_os = "macos")]
             unsafe {
@@ -418,12 +431,25 @@ impl BackendEventLoop for SDL2EventLoop {
 
             {
                 if ctx.window.mode.get_sdl2_fullscreen_type() != self.refs.borrow().fullscreen_type {
-                    let mut refs = self.refs.borrow_mut();
-                    let window = refs.window.window_mut();
-
                     let fullscreen_type = ctx.window.mode.get_sdl2_fullscreen_type();
                     let show_cursor = ctx.window.mode.should_display_mouse_cursor();
 
+                    let desktop_size = if fullscreen_type == sdl2::video::FullscreenType::Desktop {
+                        self.refs
+                            .borrow()
+                            .video
+                            .desktop_display_mode(0)
+                            .ok()
+                            .map(|dm| (dm.w.max(1) as u32, dm.h.max(1) as u32))
+                    } else {
+                        None
+                    };
+
+                    let mut refs = self.refs.borrow_mut();
+                    let window = refs.window.window_mut();
+                    if let Some((w, h)) = desktop_size {
+                        let _ = window.set_size(w, h);
+                    }
                     window.set_fullscreen(fullscreen_type);
                     window
                         .subsystem()
@@ -437,7 +463,16 @@ impl BackendEventLoop for SDL2EventLoop {
 
             {
                 let (w, h) = self.refs.borrow().window.window().drawable_size();
+                let (win_w, win_h) = self.refs.borrow().window.window().size();
                 ctx.window_drawable_size = (w as i32, h as i32);
+
+                viewport_debug_frame += 1;
+                if viewport_debug_frame % 120 == 1 {
+                    log::info!(
+                        "[viewport debug] window.size=({}, {}) drawable_size=({}, {}) screen_size=({}, {}) window_drawable_size=({}, {})",
+                        win_w, win_h, w, h, ctx.screen_size.0, ctx.screen_size.1, ctx.window_drawable_size.0, ctx.window_drawable_size.1
+                    );
+                }
             }
 
             game.update(ctx).unwrap();

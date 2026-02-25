@@ -119,7 +119,7 @@ impl Default for WindowParams {
     fn default() -> Self {
         Self {
             size_hint: (640, 480),
-            mode: WindowMode::Windowed,
+            mode: WindowMode::Fullscreen,
         }
     }
 }

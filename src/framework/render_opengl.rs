@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::cell::{RefCell, UnsafeCell};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::ffi::{c_void, CStr};
 use std::hint::unreachable_unchecked;
 use std::mem;
@@ -558,6 +559,7 @@ pub struct Gl {
 }
 
 static mut GL_PROC: Option<Gl> = None;
+static VIEWPORT_DEBUG_FRAME: AtomicU64 = AtomicU64::new(0);
 
 pub fn load_gl(gl_context: &mut GLContext) -> &'static Gl {
     unsafe {
@@ -661,7 +663,17 @@ impl BackendRenderer for OpenGLRenderer {
                 let vp_w = fb_width;
                 let vp_h = vp_w * 240 / 320;
                 let vp_y = (fb_height - vp_h) / 2;
-                gl.gl.Viewport(0, vp_y, vp_w, vp_h);
+                let vp_x = 0i32;
+
+                let frame = VIEWPORT_DEBUG_FRAME.fetch_add(1, Ordering::Relaxed);
+                if frame % 120 == 1 {
+                    log::info!(
+                        "[viewport debug] present: fb=({}, {}) vp=({}, {}, {}, {})",
+                        fb_width, fb_height, vp_x, vp_y, vp_w, vp_h
+                    );
+                }
+
+                gl.gl.Viewport(vp_x, vp_y, vp_w, vp_h);
 
                 let matrix =
                     [[2.0f32, 0.0, 0.0, 0.0], [0.0, -2.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [-1.0, 1.0, 0.0, 1.0]];

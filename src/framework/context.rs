@@ -18,6 +18,8 @@ pub struct Context {
     pub(crate) keyboard_context: KeyboardContext,
     pub(crate) real_screen_size: (u32, u32),
     pub(crate) screen_size: (f32, f32),
+    /// 当前窗口可绘制区域尺寸 (宽, 高)，由后端每帧写入，用于 present 时设置视口
+    pub(crate) window_drawable_size: (i32, i32),
     pub(crate) screen_insets: (f32, f32, f32, f32),
     pub(crate) vsync_mode: VSyncMode,
 }
@@ -33,6 +35,7 @@ impl Context {
             keyboard_context: KeyboardContext::new(),
             real_screen_size: (320, 240),
             screen_size: (320.0, 240.0),
+            window_drawable_size: (320, 240),
             screen_insets: (0.0, 0.0, 0.0, 0.0),
             vsync_mode: VSyncMode::Uncapped,
         }

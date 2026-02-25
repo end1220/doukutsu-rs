@@ -355,6 +355,8 @@ impl BackendEventLoop for SDL2EventLoop {
                             let id = controller.instance_id();
 
                             log::info!("Connected gamepad: {} (ID: {})", controller.name(), id);
+                            #[cfg(target_os = "linux")]
+                            log::info!("SDL2: on Linux this gamepad is player 1 by default (change in Settings if needed)");
 
                             let axis_sensitivity = state.settings.get_gamepad_axis_sensitivity(which);
                             ctx.gamepad_context.add_gamepad(SDL2Gamepad::new(controller), axis_sensitivity);
@@ -376,16 +378,25 @@ impl BackendEventLoop for SDL2EventLoop {
                             let new_value = (value as f64) / i16::MAX as f64;
                             ctx.gamepad_context.set_axis_value(which, drs_axis, new_value);
                             ctx.gamepad_context.update_axes(which);
+                        } else {
+                            log::debug!("SDL2: unmapped controller axis id={} axis={:?}", which, axis);
                         }
                     }
                     Event::ControllerButtonDown { which, button, .. } => {
                         if let Some(drs_button) = conv_gamepad_button(button) {
                             ctx.gamepad_context.set_button(which, drs_button, true);
+                        } else {
+                            log::info!(
+                                "SDL2: controller button not mapped (id={}, button={:?}) - device may need entry in gamecontrollerdb.txt",
+                                which, button
+                            );
                         }
                     }
                     Event::ControllerButtonUp { which, button, .. } => {
                         if let Some(drs_button) = conv_gamepad_button(button) {
                             ctx.gamepad_context.set_button(which, drs_button, false);
+                        } else {
+                            log::debug!("SDL2: unmapped controller button id={} button={:?}", which, button);
                         }
                     }
                     _ => {}
@@ -422,6 +433,11 @@ impl BackendEventLoop for SDL2EventLoop {
 
                     refs.fullscreen_type = fullscreen_type;
                 }
+            }
+
+            {
+                let (w, h) = self.refs.borrow().window.window().drawable_size();
+                ctx.window_drawable_size = (w as i32, h as i32);
             }
 
             game.update(ctx).unwrap();

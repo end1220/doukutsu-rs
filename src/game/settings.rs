@@ -140,7 +140,8 @@ fn default_screen_shake_intensity() -> ScreenShakeIntensity {
 
 #[inline(always)]
 fn default_p1_controller_type() -> ControllerType {
-    if cfg!(any(target_os = "horizon")) {
+    // Linux 掌机等默认用手柄；Horizon (Switch) 同理；其余平台默认键盘
+    if cfg!(any(target_os = "horizon", target_os = "linux")) {
         ControllerType::Gamepad(0)
     } else {
         ControllerType::Keyboard

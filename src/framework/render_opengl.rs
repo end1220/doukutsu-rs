@@ -651,6 +651,18 @@ impl BackendRenderer for OpenGLRenderer {
                 gl.gl.ClearColor(0.0, 0.0, 0.0, 1.0);
                 gl.gl.Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
+                // 使用后端每帧写入的窗口可绘制尺寸；按 x 方向等比：视口宽=设备宽，高=宽*(240/320)，垂直居中
+                let (fb_width, fb_height) = unsafe { (*self.refs.ctx).window_drawable_size };
+                let (fb_width, fb_height) = if fb_width > 0 && fb_height > 0 {
+                    (fb_width, fb_height)
+                } else {
+                    (320i32, 240i32)
+                };
+                let vp_w = fb_width;
+                let vp_h = vp_w * 240 / 320;
+                let vp_y = (fb_height - vp_h) / 2;
+                gl.gl.Viewport(0, vp_y, vp_w, vp_h);
+
                 let matrix =
                     [[2.0f32, 0.0, 0.0, 0.0], [0.0, -2.0, 0.0, 0.0], [0.0, 0.0, -1.0, 0.0], [-1.0, 1.0, 0.0, 1.0]];
 

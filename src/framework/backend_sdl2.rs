@@ -255,7 +255,6 @@ impl BackendEventLoop for SDL2EventLoop {
             let _ = state.handle_resize(ctx);
         }
 
-        let mut viewport_debug_frame: u32 = 0;
         loop {
             #[cfg(target_os = "macos")]
             unsafe {
@@ -368,6 +367,11 @@ impl BackendEventLoop for SDL2EventLoop {
                             let id = controller.instance_id();
 
                             log::info!("Connected gamepad: {} (ID: {})", controller.name(), id);
+                            if let Some(guid) = controller.mapping().split(',').next() {
+                                if guid.len() >= 32 {
+                                    log::info!("SDL2: gamepad GUID: {} (add to gamecontrollerdb.txt for custom mapping)", &guid[..32]);
+                                }
+                            }
                             #[cfg(target_os = "linux")]
                             log::info!("SDL2: on Linux this gamepad is player 1 by default (change in Settings if needed)");
 
@@ -465,14 +469,6 @@ impl BackendEventLoop for SDL2EventLoop {
                 let (w, h) = self.refs.borrow().window.window().drawable_size();
                 let (win_w, win_h) = self.refs.borrow().window.window().size();
                 ctx.window_drawable_size = (w as i32, h as i32);
-
-                viewport_debug_frame += 1;
-                if viewport_debug_frame % 120 == 1 {
-                    log::info!(
-                        "[viewport debug] window.size=({}, {}) drawable_size=({}, {}) screen_size=({}, {}) window_drawable_size=({}, {})",
-                        win_w, win_h, w, h, ctx.screen_size.0, ctx.screen_size.1, ctx.window_drawable_size.0, ctx.window_drawable_size.1
-                    );
-                }
             }
 
             game.update(ctx).unwrap();

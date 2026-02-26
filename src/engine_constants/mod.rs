@@ -1907,7 +1907,7 @@ impl EngineConstants {
         // Switching to a such root requires reloading the engine constants.
         for loc in &consts.locales {
             // We assume that the Japanese translation is original and of the same data type as the main root
-            if consts.is_cs_plus && loc.code == "jp" {
+            if consts.is_cs_plus && (loc.code == "jp" || loc.code == "zh") {
                 continue;
             }
 

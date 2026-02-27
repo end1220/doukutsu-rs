@@ -1980,6 +1980,7 @@ dependencies = [
  "cfg-if 1.0.4",
  "cmake",
  "libc",
+ "pkg-config",
  "version-compare",
 ]
 

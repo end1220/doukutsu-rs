@@ -164,6 +164,29 @@ impl SDL2EventLoop {
         let mut controller_mappings = filesystem::open(ctx, "/builtin/gamecontrollerdb.txt")?;
         game_controller.load_mappings_from_read(&mut controller_mappings).unwrap();
 
+        #[cfg(target_os = "linux")]
+        if let Ok(joystick) = sdl.joystick() {
+            let count = joystick.num_joysticks().unwrap_or(0);
+            log::info!("SDL2 gamepad init: {} joystick(s) detected", count);
+            for i in 0..count {
+                let name = joystick
+                    .name_for_index(i)
+                    .unwrap_or_else(|_| "?".to_string());
+                let guid = joystick
+                    .device_guid(i)
+                    .map(|g| g.to_string())
+                    .unwrap_or_else(|_| "?".to_string());
+                let is_gc = game_controller.is_game_controller(i);
+                log::info!(
+                    "SDL2 gamepad init: [{}] name=\"{}\" guid={} is_game_controller={}",
+                    i,
+                    name,
+                    guid,
+                    is_gc
+                );
+            }
+        }
+
         let gl_attr = video.gl_attr();
 
         #[cfg(target_os = "linux")]
@@ -361,8 +384,37 @@ impl BackendEventLoop for SDL2EventLoop {
                     }
                     Event::JoyDeviceAdded { which, .. } => {
                         let game_controller = &self.refs.borrow().game_controller;
+                        let is_gc = game_controller.is_game_controller(which);
+                        #[cfg(target_os = "linux")]
+                        {
+                            if let Ok(sdl) = sdl2::init() {
+                                if let Ok(joystick) = sdl.joystick() {
+                                    let name = joystick
+                                        .name_for_index(which as u32)
+                                        .unwrap_or_else(|_| "?".to_string());
+                                    let guid = joystick
+                                        .device_guid(which as u32)
+                                        .map(|g| g.to_string())
+                                        .unwrap_or_else(|_| "?".to_string());
+                                    log::info!(
+                                        "SDL2 JoyDeviceAdded: index={} name=\"{}\" guid={} is_game_controller={}",
+                                        which,
+                                        name,
+                                        guid,
+                                        is_gc
+                                    );
+                                    if !is_gc {
+                                        log::warn!(
+                                            "SDL2: joystick {} not added - no mapping in gamecontrollerdb.txt for guid {}",
+                                            which,
+                                            guid
+                                        );
+                                    }
+                                }
+                            }
+                        }
 
-                        if game_controller.is_game_controller(which) {
+                        if is_gc {
                             let controller = game_controller.open(which).unwrap();
                             let id = controller.instance_id();
 
@@ -378,10 +430,16 @@ impl BackendEventLoop for SDL2EventLoop {
                             let axis_sensitivity = state.settings.get_gamepad_axis_sensitivity(which);
                             ctx.gamepad_context.add_gamepad(SDL2Gamepad::new(controller), axis_sensitivity);
 
+                            #[cfg(not(feature = "sdl2-minimum"))]
                             unsafe {
                                 let controller_type =
                                     get_game_controller_type(sdl2_sys::SDL_GameControllerTypeForIndex(id as _));
                                 ctx.gamepad_context.set_gamepad_type(id, controller_type);
+                            }
+                            #[cfg(feature = "sdl2-minimum")]
+                            {
+                                ctx.gamepad_context
+                                    .set_gamepad_type(id, GamepadType::Unknown);
                             }
                         }
                     }
@@ -943,6 +1001,7 @@ impl BackendRenderer for SDL2Renderer {
 
                         let tex_ptr = cmd_params.texture_id.id() as *mut sdl2::sys::SDL_Texture;
 
+                        #[cfg(not(feature = "sdl2-minimum"))]
                         unsafe {
                             let v0 = vtx_buffer.get_unchecked(cmd_params.vtx_offset);
 
@@ -961,6 +1020,11 @@ impl BackendRenderer for SDL2Renderer {
                                 mem::size_of::<DrawIdx>() as _,
                             );
                         }
+                                        #[cfg(feature = "sdl2-minimum")]
+                        panic!(
+                            "sdl2-minimum requires OpenGL; SDL2 renderer fallback does not support imgui. \
+                             Ensure OpenGL/GLES initialization succeeds."
+                        );
 
                         canvas.set_clip_rect(None);
                     }
@@ -974,7 +1038,10 @@ impl BackendRenderer for SDL2Renderer {
     }
 
     fn supports_vertex_draw(&self) -> bool {
-        true
+        #[cfg(not(feature = "sdl2-minimum"))]
+        return true;
+        #[cfg(feature = "sdl2-minimum")]
+        false
     }
 
     fn draw_triangle_list(
@@ -1002,6 +1069,7 @@ impl BackendRenderer for SDL2Renderer {
             null_mut::<sdl2_sys::SDL_Texture>()
         };
 
+        #[cfg(not(feature = "sdl2-minimum"))]
         unsafe {
             // potential danger: we assume that the layout of VertexData is the same as SDL_Vertex
             sdl2_sys::SDL_RenderGeometry(
@@ -1013,6 +1081,11 @@ impl BackendRenderer for SDL2Renderer {
                 0,
             );
         }
+        #[cfg(feature = "sdl2-minimum")]
+        panic!(
+            "sdl2-minimum requires OpenGL; SDL2 renderer fallback does not support vertex drawing. \
+             Ensure OpenGL/GLES initialization succeeds."
+        );
 
         Ok(())
     }

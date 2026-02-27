@@ -10,8 +10,48 @@ source $HOME/.cargo/env
 # git clone https://github.com/doukutsu-rs/doukutsu-rs.git
 # cd doukutsu-rs
 
-# 编译 release 版本
+# 编译 release 版本（默认使用 bundled SDL2）
 cargo build --release --locked --bin doukutsu-rs
+
+Abernic掌机（SDL 2.0.12，需加 sdl2-minimum）：
+cargo build --release --locked --bin doukutsu-rs --no-default-features --features "default-base,backend-sdl,render-opengl,exe,webbrowser,discord-rpc,sdl2-system,sdl2-minimum"
+
+========================================
+SDL2 构建模式说明
+========================================
+
+项目提供两种 SDL2 链接方式，通过 feature 切换：
+
+1. sdl2-bundled（默认）
+   - 使用 rust-sdl2 自带的 SDL2 源码编译
+   - 适用于普通桌面环境（x11/wayland/kmsdrm）
+
+   构建命令：
+   cargo build --release --locked --bin doukutsu-rs
+
+2. sdl2-system（系统 SDL2）
+   - 通过 pkg-config 链接系统已安装的 SDL2
+   - 适用于 Linux ARM64 掌机（如 Mali GPU 设备），可解决 eglQueryDevicesEXT 等 EGL 初始化问题
+
+   前置条件：
+   - 目标系统已安装 SDL2 开发包（如 libsdl2-dev）
+   - pkg-config 能正确找到 sdl2
+
+   构建命令：
+   cargo build --release --locked --no-default-features \
+     --features "default-base,backend-sdl,render-opengl,exe,webbrowser,discord-rpc,sdl2-system"
+
+   在 ARM64 掌机上直接编译时，先安装依赖：
+   sudo apt install libsdl2-dev libasound2-dev libudev-dev libgl1-mesa-dev libxext-dev build-essential pkg-config
+
+3. sdl2-minimum（SDL 2.0.12 兼容）
+   - 屏蔽 SDL 2.0.18 新增接口（SDL_RenderGeometry、SDL_RenderGeometryRaw、SDL_GameControllerTypeForIndex）
+   - 与 sdl2-system 一起使用，适用于掌机等系统 SDL 版本较旧的场景
+   - 需确保 OpenGL/GLES 初始化成功，否则 SDL2 渲染器回退不可用
+
+   构建命令（掌机 SDL 2.0.12 等）：
+   cargo build --release --locked --no-default-features \
+     --features "default-base,backend-sdl,render-opengl,exe,webbrowser,discord-rpc,sdl2-system,sdl2-minimum"
 
 ————————————————————
 

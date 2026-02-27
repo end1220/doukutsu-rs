@@ -120,7 +120,7 @@ fn default_speed() -> f64 {
 
 #[inline(always)]
 fn default_vol() -> f32 {
-    1.0
+    0.3
 }
 
 #[inline(always)]
@@ -438,8 +438,8 @@ impl Default for Settings {
             touch_controls: cfg!(target_os = "android"),
             display_touch_controls: true,
             soundtrack: "Organya".to_string(),
-            bgm_volume: 1.0,
-            sfx_volume: 1.0,
+            bgm_volume: 0.3,
+            sfx_volume: 0.3,
             timing_mode: default_timing(),
             pause_on_focus_loss: default_pause_on_focus_loss(),
             organya_interpolation: InterpolationMode::Linear,

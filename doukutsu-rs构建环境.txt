@@ -1,0 +1,20 @@
+sudo apt update
+sudo apt install libasound2-dev libudev-dev libgl1-mesa-dev libxext-dev build-essential pkg-config
+
+
+# 安装 Rust（若未安装）
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+
+# 克隆项目（若尚未克隆）
+# git clone https://github.com/doukutsu-rs/doukutsu-rs.git
+# cd doukutsu-rs
+
+# 编译 release 版本
+cargo build --release --locked --bin doukutsu-rs
+
+————————————————————
+
+
+
+

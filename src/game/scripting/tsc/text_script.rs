@@ -628,7 +628,7 @@ impl TextScriptVM {
                     }
 
                     let mut confirm =
-                        game_scene.player1.controller.trigger_jump() || game_scene.player2.controller.trigger_jump();
+                        game_scene.player1.controller.trigger_menu_ok() || game_scene.player2.controller.trigger_menu_ok();
 
                     if state.settings.touch_controls && !state.control_flags.control_enabled() {
                         state.touch_controls.control_type = TouchControlType::None;

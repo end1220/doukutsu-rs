@@ -21,3 +21,6 @@ pub mod render_opengl;
 pub mod ui;
 pub mod util;
 pub mod vfs;
+
+#[cfg(target_os = "linux")]
+pub mod power_button;

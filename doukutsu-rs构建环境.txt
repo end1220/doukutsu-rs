@@ -53,6 +53,26 @@ SDL2 构建模式说明
    cargo build --release --locked --no-default-features \
      --features "default-base,backend-sdl,render-opengl,exe,webbrowser,discord-rpc,sdl2-system,sdl2-minimum"
 
+========================================
+电源键监听开关（Linux 掌机）
+========================================
+
+默认启用电源键监听（读取 /dev/input/event0），按关机键会触发游戏内菜单（等效 Escape）。
+
+1. 关闭电源键监听：
+   CAVESTORY_POWER_BUTTON_MONITOR=0 ./target/release/doukutsu-rs
+
+   也支持以下关闭值：
+   - false
+   - off
+   - no
+
+2. 指定电源键输入设备路径（默认 /dev/input/event0）：
+   CAVESTORY_POWER_BUTTON_DEVICE=/dev/input/event1 ./target/release/doukutsu-rs
+
+3. 同时指定：
+   CAVESTORY_POWER_BUTTON_MONITOR=1 CAVESTORY_POWER_BUTTON_DEVICE=/dev/input/event0 ./target/release/doukutsu-rs
+
 ————————————————————
 
 

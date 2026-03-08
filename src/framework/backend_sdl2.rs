@@ -39,6 +39,8 @@ use crate::framework::keyboard::ScanCode;
 #[cfg(feature = "render-opengl")]
 use crate::framework::render_opengl::{GLContext, OpenGLRenderer};
 use crate::framework::ui::init_imgui;
+#[cfg(target_os = "linux")]
+use crate::framework::power_button::{PowerButtonEvent, PowerButtonMonitor};
 use crate::game::shared_game_state::WindowMode;
 use crate::game::Game;
 use crate::game::GAME_SUSPENDED;
@@ -144,6 +146,10 @@ struct SDL2EventLoop {
     event_pump: EventPump,
     refs: Rc<RefCell<SDL2Context>>,
     opengl_available: RefCell<bool>,
+    #[cfg(target_os = "linux")]
+    power_button_monitor: Option<PowerButtonMonitor>,
+    #[cfg(target_os = "linux")]
+    power_button_rx: Option<std::sync::mpsc::Receiver<PowerButtonEvent>>,
 }
 
 struct SDL2Context {
@@ -244,6 +250,35 @@ impl SDL2EventLoop {
 
         let opengl_available = if let Ok(v) = std::env::var("CAVESTORY_NO_OPENGL") { v != "1" } else { true };
 
+        // Initialize power button monitor for Linux.
+        // Enabled by default; set CAVESTORY_POWER_BUTTON_MONITOR=0 to disable.
+        #[cfg(target_os = "linux")]
+        let (power_button_monitor, power_button_rx) = {
+            let enabled = std::env::var("CAVESTORY_POWER_BUTTON_MONITOR")
+                .map(|v| {
+                    let v = v.trim().to_ascii_lowercase();
+                    !(v == "0" || v == "false" || v == "off" || v == "no")
+                })
+                .unwrap_or(true);
+
+            if !enabled {
+                log::info!("Power button monitor disabled by CAVESTORY_POWER_BUTTON_MONITOR");
+                (None, None)
+            } else {
+                let mut monitor = PowerButtonMonitor::new();
+                let device_path =
+                    std::env::var("CAVESTORY_POWER_BUTTON_DEVICE").unwrap_or_else(|_| "/dev/input/event0".to_string());
+
+                match monitor.start(&device_path) {
+                    Some(rx) => (Some(monitor), Some(rx)),
+                    None => {
+                        log::warn!("Failed to start power button monitor on {}", device_path);
+                        (None, None)
+                    }
+                }
+            }
+        };
+
         let event_loop = SDL2EventLoop {
             event_pump,
             refs: Rc::new(RefCell::new(SDL2Context {
@@ -255,6 +290,10 @@ impl SDL2EventLoop {
                 game_controller,
             })),
             opengl_available: RefCell::new(opengl_available),
+            #[cfg(target_os = "linux")]
+            power_button_monitor,
+            #[cfg(target_os = "linux")]
+            power_button_rx,
         };
 
         Ok(Box::new(event_loop))
@@ -543,6 +582,25 @@ impl BackendEventLoop for SDL2EventLoop {
                 self.refs.deref().borrow().window.window(),
                 &self.event_pump.mouse_state(),
             );
+
+            // Handle power button events for Linux
+            #[cfg(target_os = "linux")]
+            if let Some(ref rx) = self.power_button_rx {
+                // Non-blocking check for power button events
+                while let Ok(event) = rx.try_recv() {
+                    match event {
+                        PowerButtonEvent::Pressed => {
+                            // Emulate Escape press so existing pause-menu logic handles it.
+                            // This is equivalent to the configured "menu pause" trigger.
+                            ctx.keyboard_context.set_key(ScanCode::Escape, true);
+                            log::info!("Power button: emulated Escape press");
+                        }
+                        PowerButtonEvent::Released => {
+                            ctx.keyboard_context.set_key(ScanCode::Escape, false);
+                        }
+                    }
+                }
+            }
 
             game.draw(ctx).unwrap();
         }
